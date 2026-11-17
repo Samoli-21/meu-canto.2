@@ -1,0 +1,1 @@
+<section class="page-hero page-hero-soft"><div class="container page-hero-inner"><div class="eyebrow">MEU CANTO · NAVEGAÇÃO</div><h1><?= e($status) ?> <em>— vamos tentar outro caminho.</em></h1><p><?= e($message) ?></p><a class="btn btn-primary" href="<?= e(url('/')) ?>">Voltar ao início <span>→</span></a></div></section>

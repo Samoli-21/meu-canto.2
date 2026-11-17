@@ -1,0 +1,5 @@
+<section class="page-hero page-hero-soft"><div class="container page-hero-inner"><div class="eyebrow">FERRAMENTAS DE MANUTENÇÃO</div><h1>Estado <em>do sistema.</em></h1><p>Página técnica visível apenas com <code>APP_DEBUG=true</code>. Desactiva em produção.</p></div></section><section class="section section-page-content"><div class="container"><ul class="checks">
+<?php foreach ($checks as $label => $ok): ?>
+<li class="<?= $ok ? 'ok' : 'fail' ?>"><span aria-hidden="true"><?= $ok ? '✔' : '✖' ?></span> <?= e($label) ?> — <strong><?= $ok ? 'OK' : 'Falhou' ?></strong></li>
+<?php endforeach; ?>
+</ul><h2>Teste de CSRF</h2><form method="post" action="<?= e(url('/estado/csrf')) ?>"><?= csrf_field() ?><button class="btn btn-primary" type="submit">Enviar pedido com token</button></form></div></section>

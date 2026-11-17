@@ -1,0 +1,8 @@
+{
+  "name": "meu-canto/plataforma",
+  "description": "Meu Canto — informação, acolhimento inicial e encaminhamento em saúde mental (Luanda, Angola)",
+  "type": "project",
+  "require": { "php": ">=8.2", "ext-pdo": "*", "ext-pdo_mysql": "*", "ext-mbstring": "*", "ext-fileinfo": "*" },
+  "autoload": { "psr-4": { "App\\": "app/" } },
+  "config": { "optimize-autoloader": true }
+}

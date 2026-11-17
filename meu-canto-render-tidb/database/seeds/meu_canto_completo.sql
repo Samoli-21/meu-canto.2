@@ -1,0 +1,3 @@
+-- O projecto já não cria dados fictícios automaticamente.
+-- Cria o primeiro administrador através das variáveis ADMIN_NAME, ADMIN_EMAIL e ADMIN_PASSWORD.
+-- Conteúdos e profissionais são geridos pelo painel administrativo.
