@@ -1,0 +1,7 @@
+# Permite abrir http://localhost/meu-canto/ (redirecciona internamente para public/)
+Options -Indexes
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+    RewriteRule ^$ public/ [L]
+    RewriteRule ^(?!public/)(.*)$ public/$1 [L]
+</IfModule>

@@ -1,0 +1,22 @@
+# Encaminha páginas inexistentes para o front controller MVC.
+Options +FollowSymLinks -Indexes -MultiViews
+DirectoryIndex index.php
+AcceptPathInfo On
+
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+
+    # Os ficheiros e directórios existentes (CSS, JS, imagens) são servidos directamente.
+    RewriteCond %{REQUEST_FILENAME} -f [OR]
+    RewriteCond %{REQUEST_FILENAME} -d
+    RewriteRule ^ - [END]
+
+    # Qualquer outra URL passa pelo router PHP.
+    RewriteRule ^ index.php [END,QSA]
+</IfModule>
+
+<IfModule mod_headers.c>
+    Header always set X-Content-Type-Options "nosniff"
+    Header always set Referrer-Policy "strict-origin-when-cross-origin"
+    Header always set X-Frame-Options "DENY"
+</IfModule>
