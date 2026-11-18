@@ -43,13 +43,16 @@ final class Router
 
     public function dispatch(Request $request): Response
     {
+        // HEAD deve devolver os mesmos cabeçalhos de GET, sem conteúdo.
+        // O Apache suprime o corpo da resposta HTTP HEAD.
+        $dispatchMethod = $request->method === 'HEAD' ? 'GET' : $request->method;
         $pathMatched = false;
         foreach ($this->routes as $route) {
             if (!preg_match($route['regex'], $request->path, $m)) {
                 continue;
             }
             $pathMatched = true;
-            if ($route['method'] !== $request->method) {
+            if ($route['method'] !== $dispatchMethod) {
                 continue;
             }
             $request->params = array_filter($m, 'is_string', ARRAY_FILTER_USE_KEY);
