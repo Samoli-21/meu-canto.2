@@ -43,3 +43,5 @@ ENV PORT=10000
 EXPOSE 10000
 ENTRYPOINT ["meu-canto-entrypoint"]
 
+ENTRYPOINT ["meu-canto-entrypoint"]
+
