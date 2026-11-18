@@ -1,45 +1,30 @@
-
 #!/bin/sh
 set -eu
 
 cd /var/www/html
-
 PORT="${PORT:-10000}"
-
 case "$PORT" in
-  ''|*[!0-9]*)
-    echo '[Meu Canto] ERRO: PORT inválida.' >&2
-    exit 1
-    ;;
+  ''|*[!0-9]*) echo '[Meu Canto] ERRO: PORT deve ser numérica.' >&2; exit 1 ;;
 esac
 
-# Validar os ficheiros principais
-if [ ! -f /var/www/html/public/index.php ] || \
-   [ ! -f /var/www/html/routes/web.php ]; then
-    echo '[Meu Canto] ERRO: estrutura MVC incompleta.' >&2
-    exit 1
+if [ ! -f /var/www/html/public/index.php ] || [ ! -f /var/www/html/routes/web.php ]; then
+  echo '[Meu Canto] ERRO: estrutura MVC incompleta.' >&2
+  find /var/www/html -maxdepth 2 -type f | sort >&2 || true
+  exit 1
 fi
 
-# Configurar Apache para a porta do Render
-sed -ri "s/^Listen 80$/Listen ${PORT}/" \
-    /etc/apache2/ports.conf
+# Render encaminha o tráfego para a variável PORT.
+sed -ri "s/^Listen 80$/Listen ${PORT}/" /etc/apache2/ports.conf
+sed -ri "s/<VirtualHost \\*:80>/<VirtualHost *:${PORT}>/" /etc/apache2/sites-available/000-default.conf
 
-sed -ri "s/<VirtualHost \*:80>/<VirtualHost *:${PORT}>/" \
-    /etc/apache2/sites-available/000-default.conf
-
-echo "[Meu Canto] Porta configurada: ${PORT}"
-
-# Validar Apache
+printf '[Meu Canto] Porta configurada: %s\n' "$PORT"
+printf '[Meu Canto] DocumentRoot: %s\n' "$APACHE_DOCUMENT_ROOT"
 apache2ctl -t
 
-# Migrar banco de dados
-echo '[Meu Canto] A verificar a base de dados...'
+# As migrações são idempotentes e criam apenas as três tabelas do projecto.
+echo '[Meu Canto] A verificar a base de dados TiDB/MySQL...'
 php database/migrate.php
-
-# Criar administrador, caso ainda não exista
 php database/create-admin.php
 
-# Iniciar servidor
 echo '[Meu Canto] A iniciar Apache...'
 exec apache2-foreground
-

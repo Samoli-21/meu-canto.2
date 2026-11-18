@@ -13,6 +13,19 @@ final class Session
         $forwardedProto = strtolower(trim(explode(',', (string) ($_SERVER['HTTP_X_FORWARDED_PROTO'] ?? ''))[0] ?? ''));
         $https = ((!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') || $forwardedProto === 'https');
         session_name('mc_session');
+
+        // Guarda sessões numa pasta própria da aplicação. No Docker, o storage
+        // pertence ao utilizador www-data; localmente, usa-a quando for gravável.
+        if (defined('BASE_PATH')) {
+            $sessionDirectory = BASE_PATH . '/storage/sessions';
+            if (!is_dir($sessionDirectory)) {
+                @mkdir($sessionDirectory, 0775, true);
+            }
+            if (is_dir($sessionDirectory) && is_writable($sessionDirectory)) {
+                ini_set('session.save_path', $sessionDirectory);
+            }
+        }
+
         session_set_cookie_params([
             'lifetime' => 0,
             'path'     => '/',

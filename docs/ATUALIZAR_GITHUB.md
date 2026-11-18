@@ -1,92 +1,127 @@
-# Como substituir o projecto inteiro no GitHub (Windows)
+# Actualizar o repositório `Samoli-21/meu-canto.2` no Windows
 
-Este guia actualiza o repositório `Samoli-21/meu-canto.2` com o projecto completo do ZIP. A estrutura nova fica directamente na raiz do GitHub — sem a pasta exterior `meu-canto-render-tidb`.
+Este pacote contém um projecto completo e independente. A página inicial está em `app/Views/public/home.php` e foi mantida com base na [versão do ficheiro no GitHub](https://github.com/Samoli-21/meu-canto.2/blob/main/app/Views/public/home.php). Não copies apenas essa view: ela depende do layout, helpers, controladores, rotas, CSS, imagens e JavaScript incluídos no pacote.
 
-## 1. Fazer cópia de segurança
+## 1. Extrair o ZIP
 
-Antes de substituir qualquer coisa, guarda uma cópia do repositório actual ou descarrega-o como ZIP no GitHub. Não apagues a base de dados TiDB: este processo altera apenas ficheiros do projecto.
+1. Descarrega o ZIP `meu-canto-render-tidb-completo.zip`.
+2. Clica com o botão direito → **Extrair tudo**.
+3. Abre a pasta extraída. Confirma que vês directamente `Dockerfile`, `app`, `config`, `database`, `docker`, `docs`, `public`, `routes` e `storage`.
+4. Não copies uma pasta exterior adicional. O `Dockerfile` tem de ficar na raiz do repositório.
 
-## 2. Descarregar e extrair o ZIP
+## 2. Fazer cópia de segurança do repositório local
 
-1. Descarrega `meu-canto-novo-render-tidb.zip`.
-2. No Explorador do Windows, clica com o botão direito e escolhe **Extrair tudo**.
-3. Abre a pasta extraída. Deves ver directamente `Dockerfile`, `README.md`, `.env.example`, `app`, `config`, `database`, `docker`, `docs`, `public`, `routes` e `storage`.
-4. Se vires apenas uma pasta `meu-canto-novo` que contém estes elementos, abre-a; são os elementos internos que devem ser copiados para a raiz do repositório.
+O guia assume que já tens uma cópia clonada em:
 
-## 3. Clonar o repositório numa pasta nova
-
-Abre PowerShell numa localização em que tenhas espaço, por exemplo o Desktop, e executa:
-
-```powershell
-cd $HOME\Desktop
-git clone https://github.com/Samoli-21/meu-canto.2.git meu-canto-2-atualizacao
+```text
+C:\Users\joaquim.samoli\Desktop\meu-canto-publicar-2
 ```
 
-Se o repositório for privado, autentica-te quando o GitHub solicitar.
-
-## 4. Substituir o conteúdo da pasta clonada
-
-Assumindo que extraíste o ZIP para `C:\Users\TEU_UTILIZADOR\Downloads\meu-canto-novo`, ajusta o caminho abaixo para a localização real. O comando remove os ficheiros antigos do clone, mas preserva a pasta `.git` que mantém a ligação ao GitHub.
+Se essa pasta for diferente, altera `$repo` no comando abaixo. Antes de substituir, cria uma cópia de segurança no Desktop:
 
 ```powershell
-$repo = "$HOME\Desktop\meu-canto-2-atualizacao"
-$novo = "$HOME\Downloads\meu-canto-novo"
+$repo = "C:\Users\joaquim.samoli\Desktop\meu-canto-publicar-2"
+$novo = "C:\Users\joaquim.samoli\Downloads\meu-canto-render-tidb-completo"
+$backup = "$repo-backup-$(Get-Date -Format yyyyMMdd-HHmm)"
 
+if (!(Test-Path "$repo\.git")) { throw "Não encontrei .git em $repo" }
+if (!(Test-Path "$novo\Dockerfile")) { throw "Não encontrei Dockerfile em $novo" }
+
+Copy-Item -LiteralPath $repo -Destination $backup -Recurse
+Write-Host "Cópia de segurança criada em: $backup"
+```
+
+Altera `$novo` para a pasta real onde extraíste o ZIP.
+
+## 3. Substituir o código antigo
+
+Este comando remove o conteúdo antigo do clone, mas **preserva `.git`**, que mantém a ligação e o histórico do GitHub. Preserva também um `.env` local, se existir, porque contém configurações privadas de desenvolvimento.
+
+```powershell
 Get-ChildItem -LiteralPath $repo -Force |
-  Where-Object { $_.Name -ne ".git" } |
+  Where-Object { $_.Name -notin @('.git', '.env') } |
   Remove-Item -Recurse -Force
 
 Get-ChildItem -LiteralPath $novo -Force |
+  Where-Object { $_.Name -ne '.env' } |
   Copy-Item -Destination $repo -Recurse -Force
 ```
 
-Se o conteúdo extraído estiver dentro de uma subpasta, aponta `$novo` para essa subpasta. Confirma que `Dockerfile` está em `$repo\Dockerfile`, e não em `$repo\meu-canto-novo\Dockerfile`.
-
-## 5. Rever e enviar as alterações
+## 4. Confirmar os caminhos essenciais
 
 ```powershell
-cd "$HOME\Desktop\meu-canto-2-atualizacao"
-git status
-git add -A
-git status
-git commit -m "Recria Meu Canto com layout responsivo e deploy Render"
-git push origin main
+Set-Location $repo
+
+Test-Path .\Dockerfile
+Test-Path .\public\index.php
+Test-Path .\public\.htaccess
+Test-Path .\app\Views\public\home.php
+Test-Path .\routes\web.php
+Test-Path .\docker\entrypoint.sh
+Test-Path .\.git
 ```
 
-Se a branch de produção não for `main`, substitui `main` pelo nome correcto. O segundo `git status` deve mostrar os ficheiros a serem enviados. Revê antes do commit.
+Todos devem devolver `True`. Confirma também que `.env` não aparece como ficheiro a enviar:
 
-## 6. Corrigir os caminhos no Render para a nova raiz
+```powershell
+git status --short
+```
 
-Como o `Dockerfile` agora está directamente na raiz do repositório, no Render → serviço `meu-canto.2` → Settings → Build & Deploy configura:
+O `.gitignore` exclui `.env`. Nunca adiciones credenciais, passwords ou chaves de IA ao GitHub.
+
+## 5. Criar commit e enviar
+
+```powershell
+git add -A
+git status
+git commit -m "Actualiza Meu Canto com projecto completo e configuracao Render"
+```
+
+Se a ligação HTTPS do Git no Windows voltar a apresentar o erro Schannel, usa o OpenSSL sem desactivar validação de certificados:
+
+```powershell
+git -c http.sslBackend=openssl -c http.version=HTTP/1.1 -c core.compression=0 push origin main
+```
+
+Confirma que o GitHub recebeu exactamente o commit local:
+
+```powershell
+git rev-parse HEAD
+git -c http.sslBackend=openssl -c http.version=HTTP/1.1 ls-remote origin refs/heads/main
+```
+
+Os dois hashes devem ser iguais. Se o push falhar com HTTP 408/reset, não apagues a pasta nem cries outro commit. Mantém o commit local e tenta novamente noutra rede, por exemplo hotspot, ou mais tarde.
+
+## 6. Configurar o Render para a nova raiz
+
+O novo pacote coloca o Dockerfile na raiz. No Render → `meu-canto.2` → Settings → Build & Deploy:
 
 | Campo | Valor |
 |---|---|
 | Root Directory | vazio |
 | Docker Build Context Directory | `.` |
 | Dockerfile Path | `Dockerfile` |
+| Branch | `main` |
 
-Guarda e faz **Manual Deploy → Deploy latest commit** (ou deixa o Auto-Deploy iniciar após o push). Não voltes a colocar `meu-canto-render-tidb` nesses campos.
+Guarda. O Auto-Deploy pode iniciar; caso contrário, usa **Manual Deploy → Deploy latest**.
 
-## 7. Preservar as variáveis e a base TiDB
+## 7. Preservar TiDB e variáveis
 
-- As variáveis em Render → Environment permanecem guardadas no serviço; não as coloques no GitHub.
-- Confirma `DB_HOST`, `DB_PORT`, `DB_NAME=meu_canto`, `DB_USER`, `DB_PASS`, `DB_SSL=true`, `DB_SSL_CA`.
-- A base de dados não é substituída pelo upload de ficheiros.
-- A migração usa `CREATE TABLE IF NOT EXISTS`; não apaga as três tabelas nem os registos existentes.
-- Se já existe administrador, o projecto preserva a conta e a palavra-passe actuais.
+- Não cries outra instância TiDB.
+- Não apagues a base `meu_canto` nem as tabelas existentes.
+- As variáveis guardadas em Render → Environment permanecem no serviço. Confirma `DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USER`, `DB_PASS`, `DB_SSL=true`, `DB_SSL_CA`.
+- A migração usa `CREATE TABLE IF NOT EXISTS` para `usuarios`, `profissionais_saude` e `conteudos_site`. Não contém `DROP TABLE`.
+- O script de administrador preserva a conta admin já existente.
 
 ## 8. Confirmar o deploy
 
-Nos Logs, espera ver `Migração concluída`, `A iniciar Apache` e Apache a correr. Testa `https://TEU-SERVICO.onrender.com/healthz` e depois as páginas do site.
+Nos Runtime Logs, procura:
 
-## Alternativa: GitHub Desktop
+```text
+Migração concluída. Entidades de negócio: usuarios, profissionais_saude, conteudos_site.
+Já existe um administrador; nenhuma alteração foi feita.
+[Meu Canto] A iniciar Apache...
+Apache/2.4 ... configured -- resuming normal operations
+```
 
-1. Clona `Samoli-21/meu-canto.2` para uma pasta nova usando GitHub Desktop.
-2. Abre a pasta local do repositório.
-3. Faz uma cópia de segurança dos ficheiros actuais.
-4. Copia para essa pasta o conteúdo interno do ZIP, substituindo os ficheiros.
-5. Confirma que `Dockerfile` fica na raiz, não dentro de outra subpasta.
-6. No GitHub Desktop, revê as alterações, escreve uma mensagem de commit e escolhe **Commit to main**.
-7. Clica em **Push origin**.
-
-Nunca copies o ficheiro `.env` local para o GitHub. O pacote inclui apenas `.env.example` sem credenciais reais.
+Testa primeiro `https://TEU-SERVICO.onrender.com/healthz` (deve devolver `ok`), depois `/`, `/o-que-sinto`, `/recursos`, `/profissionais`, `/entrar` e `/canto`.

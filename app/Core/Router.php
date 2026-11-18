@@ -68,8 +68,8 @@ final class Router
 
     public function dispatch(Request $request): Response
     {
-        // HEAD usa o mesmo handler de GET; Response::send() omite o corpo.
-        $dispatchMethod = $request->method === 'HEAD' ? 'GET' : $request->method;
+        // HEAD reutiliza a rota GET; Response::send() omite o corpo da resposta.
+        $method = $request->method === 'HEAD' ? 'GET' : $request->method;
         $pathMatched = false;
 
         foreach ($this->routes as $route) {
@@ -78,7 +78,7 @@ final class Router
             }
 
             $pathMatched = true;
-            if ($route['method'] !== $dispatchMethod) {
+            if ($route['method'] !== $method) {
                 continue;
             }
 

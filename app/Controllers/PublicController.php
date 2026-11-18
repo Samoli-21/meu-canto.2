@@ -22,13 +22,35 @@ final class PublicController extends Controller
         ['type'=>'Áudio','format'=>'Ouvir','title'=>'Dois minutos de tranquilidade','summary'=>'Uma pausa guiada para abrandar e observar a respiração.','duration'=>'2 min','tone'=>'resource-sand','icon'=>'audio'],
         ['type'=>'Artigo','format'=>'Leitura','title'=>'Sono, descanso e saúde emocional','summary'=>'Uma introdução à relação entre descanso, rotina e bem-estar.','duration'=>'6 min de leitura','tone'=>'resource-green','icon'=>'moon'],
     ];
-    public function home(Request $r): Response { $featured = Database::query("SELECT slug,titulo,resumo,imagem_url,tipo FROM conteudos_site WHERE estado='publicado' AND tipo IN ('destaque','artigo') ORDER BY ordem ASC, actualizado_em DESC LIMIT 3")->fetchAll(); return $this->view('public/home',['title'=>'Um espaço para compreender o que sentes','topics'=>self::TOPICS,'resources'=>array_slice(self::RESOURCES,0,4),'featuredContents'=>$featured]); }
+    public function home(Request $r): Response
+    {
+        // A página inicial mantém a experiência editorial mesmo que a consulta
+        // aos destaques esteja temporariamente indisponível. O erro fica nos logs.
+        $featured = [];
+        try {
+            $featured = Database::query("SELECT slug,titulo,resumo,imagem_url,tipo FROM conteudos_site WHERE estado='publicado' AND tipo IN ('destaque','artigo') ORDER BY ordem ASC, actualizado_em DESC LIMIT 3")->fetchAll();
+        } catch (\Throwable $e) {
+            error_log('[Meu Canto] Não foi possível carregar os destaques da página inicial: ' . $e->getMessage());
+        }
+
+        return $this->view('public/home', [
+            'title' => 'Um espaço para compreender o que sentes',
+            'topics' => self::TOPICS,
+            'resources' => array_slice(self::RESOURCES, 0, 4),
+            'featuredContents' => $featured,
+        ]);
+    }
     public function feelings(Request $r): Response { return $this->view('public/feelings',['title'=>'O que sinto','topics'=>self::TOPICS]); }
     public function topic(Request $r): Response { $slug=(string)($r->params['slug']??''); if(!isset(self::TOPICS[$slug])) return $this->view('errors/error',['status'=>404,'message'=>'Não encontrámos este tema. Explora outros assuntos ou volta ao início.'],404); return $this->view('public/topic',['title'=>self::TOPICS[$slug]['title'],'topic'=>self::TOPICS[$slug],'slug'=>$slug]); }
     public function resources(Request $r): Response
     {
         $type = trim((string)$r->input('tipo', ''));
-        $published = Database::query("SELECT slug,titulo,resumo,imagem_url,tipo FROM conteudos_site WHERE estado='publicado' AND tipo='recurso' ORDER BY ordem ASC, actualizado_em DESC")->fetchAll();
+        $published = [];
+        try {
+            $published = Database::query("SELECT slug,titulo,resumo,imagem_url,tipo FROM conteudos_site WHERE estado='publicado' AND tipo='recurso' ORDER BY ordem ASC, actualizado_em DESC")->fetchAll();
+        } catch (\Throwable $e) {
+            error_log('[Meu Canto] Não foi possível carregar os recursos editoriais: ' . $e->getMessage());
+        }
         $editorial = array_map(static fn($row) => [
             'slug'=>$row['slug'], 'type'=>'Recurso da equipa', 'format'=>'Leitura',
             'title'=>$row['titulo'], 'summary'=>$row['resumo'] ?: 'Material informativo publicado pela equipa do Meu Canto.',
@@ -46,8 +68,19 @@ final class PublicController extends Controller
     public function schoolWork(Request $r): Response { return $this->view('public/work',['title'=>'Escola, trabalho e vida']); }
     public function professionals(Request $r): Response
     {
-        $items = Database::query("SELECT id,nome,email,telefone,especialidade,formacao,experiencia_anos,biografia,foto_url,municipio,provincia,modalidade,morada_consultorio FROM profissionais_saude WHERE estado='aprovado' ORDER BY nome ASC")->fetchAll();
-        return $this->view('public/professionals', ['title'=>'Encontrar apoio profissional', 'professionals'=>$items]);
+        $items = [];
+        $directoryAvailable = true;
+        try {
+            $items = Database::query("SELECT id,nome,email,telefone,especialidade,formacao,experiencia_anos,biografia,foto_url,municipio,provincia,modalidade,morada_consultorio FROM profissionais_saude WHERE estado='aprovado' ORDER BY nome ASC")->fetchAll();
+        } catch (\Throwable $e) {
+            $directoryAvailable = false;
+            error_log('[Meu Canto] Não foi possível carregar o directório de profissionais: ' . $e->getMessage());
+        }
+        return $this->view('public/professionals', [
+            'title' => 'Encontrar apoio profissional',
+            'professionals' => $items,
+            'directoryAvailable' => $directoryAvailable,
+        ]);
     }
 
     public function submitProfessional(Request $r): Response

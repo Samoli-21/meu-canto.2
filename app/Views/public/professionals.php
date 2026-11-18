@@ -28,7 +28,15 @@
             <?php endforeach; ?>
         </div>
         <?php else: ?>
-        <div class="directory-empty"><span class="directory-empty-icon">♧</span><h3>Estamos a preparar o directório.</h3><p>Ainda não existem perfis aprovados para apresentação pública. Os profissionais só serão exibidos depois da revisão da equipa Meu Canto.</p></div>
+        <div class="directory-empty"><span class="directory-empty-icon">♧</span>
+            <?php if (isset($directoryAvailable) && !$directoryAvailable): ?>
+                <h3>O directório está temporariamente indisponível.</h3>
+                <p>Não foi possível carregar os perfis neste momento. Tenta novamente mais tarde.</p>
+            <?php else: ?>
+                <h3>Estamos a preparar o directório.</h3>
+                <p>Ainda não existem perfis aprovados para apresentação pública. Os profissionais só serão exibidos depois da revisão da equipa Meu Canto.</p>
+            <?php endif; ?>
+        </div>
         <?php endif; ?>
     </div>
 </section>
