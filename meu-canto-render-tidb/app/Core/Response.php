@@ -36,7 +36,9 @@ final class Response
         foreach ($this->headers as $name => $value) {
             header("$name: $value");
         }
-        echo $this->body;
+        if (strtoupper($_SERVER['REQUEST_METHOD'] ?? 'GET') !== 'HEAD') {
+            echo $this->body;
+        }
     }
 
     private static function securityHeaders(): array
