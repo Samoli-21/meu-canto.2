@@ -1,88 +1,44 @@
-<?php
-declare(strict_types=1);
+FROM php:8.2-apache
 
-namespace App\Core;
+# Dependências PHP e módulos Apache necessários ao MVC.
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends ca-certificates libonig-dev \
+    && docker-php-ext-install pdo_mysql mysqli mbstring \
+    && a2enmod dir rewrite headers expires \
+    && rm -rf /var/lib/apt/lists/*
 
-final class Router
-{
-    /** @var array<int, array{method:string, regex:string, handler:mixed, middleware:array}> */
-    private array $routes = [];
-    private array $globalMiddleware = [];
+# PHP de produção.
+RUN mv "$PHP_INI_DIR/php.ini-production" "$PHP_INI_DIR/php.ini"
 
-    public function middleware(string ...$classes): void
-    {
-        $this->globalMiddleware = array_merge($this->globalMiddleware, $classes);
-    }
+# Apache: servir a aplicação a partir de /public e encaminhar rotas MVC
+# (por exemplo /o-que-sinto) para public/index.php.
+RUN sed -ri 's#DocumentRoot /var/www/html$#DocumentRoot /var/www/html/public#' \
+        /etc/apache2/sites-available/000-default.conf \
+    && printf '%s\n' \
+        '<Directory /var/www/html/public>' \
+        '    Options +FollowSymLinks -Indexes -MultiViews' \
+        '    AllowOverride All' \
+        '    Require all granted' \
+        '    DirectoryIndex index.php index.html' \
+        '    FallbackResource /index.php' \
+        '</Directory>' \
+        > /etc/apache2/conf-available/meu-canto-public.conf \
+    && a2enconf meu-canto-public \
+    && printf 'ServerName localhost\n' \
+        > /etc/apache2/conf-available/meu-canto-servername.conf \
+    && a2enconf meu-canto-servername
 
-    public function get(string $pattern, array|callable $handler, array $middleware = []): void
-    {
-        $this->add('GET', $pattern, $handler, $middleware);
-    }
+WORKDIR /var/www/html
+COPY . /var/www/html/
+COPY docker/entrypoint.sh /usr/local/bin/meu-canto-entrypoint
 
-    public function post(string $pattern, array|callable $handler, array $middleware = []): void
-    {
-        $this->add('POST', $pattern, $handler, $middleware);
-    }
+RUN test -f /var/www/html/public/index.php \
+    && mkdir -p /var/www/html/storage/logs \
+                /var/www/html/storage/cache \
+                /var/www/html/storage/private \
+    && chmod +x /usr/local/bin/meu-canto-entrypoint \
+    && chown -R www-data:www-data /var/www/html/storage
 
-    public function put(string $pattern, array|callable $handler, array $middleware = []): void
-    {
-        $this->add('PUT', $pattern, $handler, $middleware);
-    }
-
-    public function delete(string $pattern, array|callable $handler, array $middleware = []): void
-    {
-        $this->add('DELETE', $pattern, $handler, $middleware);
-    }
-
-    private function add(string $method, string $pattern, array|callable $handler, array $middleware): void
-    {
-        $pattern = rtrim($pattern, '/') ?: '/';
-        $regex = '#^' . preg_replace('#\{([a-z_]+)\}#i', '(?P<$1>[^/]+)', $pattern) . '$#';
-        $this->routes[] = compact('method', 'regex', 'handler', 'middleware');
-    }
-
-    public function dispatch(Request $request): Response
-    {
-        // HEAD deve devolver os mesmos cabeçalhos de GET, sem conteúdo.
-        // O Apache suprime o corpo da resposta HTTP HEAD.
-        $dispatchMethod = $request->method === 'HEAD' ? 'GET' : $request->method;
-        $pathMatched = false;
-        foreach ($this->routes as $route) {
-            if (!preg_match($route['regex'], $request->path, $m)) {
-                continue;
-            }
-            $pathMatched = true;
-            if ($route['method'] !== $dispatchMethod) {
-                continue;
-            }
-            $request->params = array_filter($m, 'is_string', ARRAY_FILTER_USE_KEY);
-            $core = fn (Request $r): Response => $this->invoke($route['handler'], $r);
-            return $this->runMiddleware(array_merge($this->globalMiddleware, $route['middleware']), $request, $core);
-        }
-        return $pathMatched ? $this->error(405, 'Método não permitido') : $this->error(404, 'Página não encontrada');
-    }
-
-    private function runMiddleware(array $stack, Request $request, callable $core): Response
-    {
-        $next = array_reduce(
-            array_reverse($stack),
-            fn (callable $next, string $class) => fn (Request $r): Response => (new $class())->handle($r, $next),
-            $core
-        );
-        return $next($request);
-    }
-
-    private function invoke(array|callable $handler, Request $request): Response
-    {
-        if (is_array($handler)) {
-            [$class, $method] = $handler;
-            return (new $class())->$method($request);
-        }
-        return $handler($request);
-    }
-
-    public function error(int $status, string $message): Response
-    {
-        return Response::html(View::render('errors/error', compact('status', 'message')), $status);
-    }
-}
+ENV PORT=10000
+EXPOSE 10000
+ENTRYPOINT ["meu-canto-entrypoint"]
